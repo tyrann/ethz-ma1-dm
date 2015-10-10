@@ -18,7 +18,7 @@ duplicates = []
 
 for line in sys.stdin:
     line = line.strip()
-    key, video_id = line.split("\t")
+    key, video_id = line.split(", ")
 
     if last_key is None:
         last_key = key
