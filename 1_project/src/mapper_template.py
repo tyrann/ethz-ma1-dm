@@ -54,5 +54,5 @@ if __name__ == "__main__":
       # sig is a 1 by NUM_HASHES array of integers.
       for b in xrange(0, B):
          bucket = hash_band(b, sig, hashes)
-         print ((b, bucket), video_id)
+         print("%s, %s"%((b, bucket), video_id))
         
