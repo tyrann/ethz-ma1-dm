@@ -11,9 +11,14 @@ SCRIPT_DIR  = File.dirname(__FILE__)
 
 #------------------------------------------------------------------------------
 # File paths.
-DATA        = File.join(SCRIPT_DIR, '../data/training.txt')
-MAPPER      = File.join(SCRIPT_DIR, '../src/mapper_ut.py' )
-REDUCER     = File.join(SCRIPT_DIR, '../src/reducer_ut.py')
+DUPLICATES  = File.join(SCRIPT_DIR, '../data/duplicates.txt')
+DATA        = File.join(SCRIPT_DIR, '../data/training.txt'  )
+MAPPER      = File.join(SCRIPT_DIR, '../src/mapper_ut.py'   )
+REDUCER     = File.join(SCRIPT_DIR, '../src/reducer_ut.py'  )
+CHECKER     = File.join(SCRIPT_DIR, '../src/check.py'       )
+TEMP_MAP    = File.join(SCRIPT_DIR, 'temp_map'              )
+TEMP_SORT   = File.join(SCRIPT_DIR, 'temp_sort'             )
+TEMP_REDUCE = File.join(SCRIPT_DIR, 'temp_reduce'           )
 
 #------------------------------------------------------------------------------
 # Commands.
@@ -21,13 +26,17 @@ PYTHON      = 'python'
 SORT        = 'sort'
 
 # Creates a new string representing the original command piped into the 
-# specified file.
+# specified file and piped from the specified file.
 # 
 # ===Params:
 # +command+:: The shell command to pipe.
-# +file+::    The file to pipe the output into.
-def pipe_to_file(command, file) 
-   command + " >#{file}"       
+# +input+::   The file to take input from.
+# +output+::  The file to pipe the output into.
+def pipe_file(command, input, output) 
+   res = command
+   res << " <#{input}" if input and not input.empty?
+   res << " >#{output}" if output and not output.empty?
+   res
 end
 
 # Creates a new string representing the first command piped into the second.
@@ -94,10 +103,10 @@ LOAD        = work.length
 CHUNKSIZE   = 5
 CHUNKCOUNT  = LOAD/CHUNKSIZE
 
-puts "Starting Map Reduce Process [N = #{LOAD}]"
-puts "Dividing data into Chunks   [S = #{CHUNKSIZE}]"
-puts "Setting up separate Chunks  [C = #{CHUNKCOUNT}]"
-puts "Using multiple processes    [P = #{PROCS}]"
+puts "Starting Map Reduce Process   [N = #{LOAD}]"
+puts "Dividing data into Chunks     [S = #{CHUNKSIZE}]"
+puts "Setting up separate Chunks    [C = #{CHUNKCOUNT}]"
+puts "Using multiple processes      [P = #{PROCS}]"
 
 chunks = Array.new(CHUNKCOUNT)
 
@@ -116,13 +125,16 @@ chunks[CHUNKCOUNT-1] = work.slice(
    chunk_size
 )
 
-puts "Last chunk size is bigger   [S = #{chunk_size}]"
+puts "Last chunk size is bigger     [S = #{chunk_size}]"
 
 result = Parallel.map(
    chunks, 
    :progress      => 'Mapping',
    :in_processes  => PROCS
 ) do |chunk|
+   # Using the backticks is actually a pretty terrible idea. They have
+   # a maximum command length. Should really consider switching to popen
+   # or even Open3.
    mapped = `#{python(MAPPER, chunk.join(' '))}`
    mapped.split("\n")
 end
@@ -130,4 +142,78 @@ end
 # We currently have an array of arrays which we need to flatten.
 result.flatten!
 
-puts "Finished mapping. [N = #{result.length}]"
+puts "Finished mapping.             [N = #{result.length}]"
+puts "Writing the mapped values     [F = #{TEMP_MAP}]"
+File.open(TEMP_MAP, 'w') { |f| f.write(result.join "\n")}
+
+# The next step is sorting the received data. To do so, we use the ruby
+# sorting capabilities. This is nothing we can do in parallel.
+puts "Sorting the mapped values     [F = #{TEMP_SORT}]"
+result.collect! {|l| l.split(', ')}
+groups = result.group_by { |l| l[0] }
+
+# Print the sorted values into a temporary file.
+File.open(TEMP_SORT, 'w') do |f|
+   groups.each do |key, values|
+      lines = values.map { |v| "#{v[0]}, #{v[1]}" }
+      f.write lines.join("\n")
+   end
+end
+
+# The last step, which can be done in parallel again is reducing.
+# To do so, we first need to separate the sorted values into chunks.
+RMAXCHUNKSIZE = 100
+
+chunks = []
+load   = []
+groups.each do |key, values|
+   chunk = values.map { |v| "#{v[0]}, #{v[1]}"}
+   load.concat chunk
+   
+   # Check if the chunk is large enough and finalize it if so.
+   if load.length >= RMAXCHUNKSIZE
+      chunks << load.compact
+      load = []
+   end
+end
+
+# We extract some information from these chunks for debugging purposes.
+# We want to know the maximum chunk size, the minimum chunk size and
+# the average chunk size.
+NCHUNKS = chunks.length
+min     =  Float::INFINITY
+max     = -Float::INFINITY
+avg     = 0.0
+
+chunks.each do |c|
+   len = c.length
+   min = len if len < min
+   max = len if len > max
+   avg = avg + len.to_f/NCHUNKS
+end
+
+puts "The values have been sorted   [C = #{NCHUNKS}]"
+puts "The minimum chunk size is     [S = #{min}]"
+puts "The maximum chunk size is     [S = #{max}]"
+puts "The average chunk size is     [S = #{avg}]"
+puts "Reducing the chunks           [R = #{REDUCER}]"
+
+result = Parallel.map(
+   chunks, 
+   :progress      => 'Reducing',
+   :in_processes  => PROCS
+) do |chunk|
+   reduced = `#{python(REDUCER, chunk.join("\n"))}`
+   reduced.split("\n")
+end
+
+result.flatten!
+
+puts "The values have been reduced  [N = #{result.length}]"
+puts "Writing results to file       [R = #{TEMP_REDUCE}]"
+File.open(TEMP_REDUCE, 'w') { |f| f.write(result.join "\n") }
+
+puts "Running check against true duplicates!"
+puts "----------------------------------------------------"
+puts ""
+puts `python #{CHECKER} #{TEMP_REDUCE} #{DUPLICATES}`
