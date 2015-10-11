@@ -12,18 +12,18 @@ np.random.seed(seed=42)
 #--------------------------------------------------------------------------
 # CONSTANTS
 
-HASHES   = 1000
-SHINGLES = 1024
-BANDS    = 20
-ROWS     = 50
+HASHES   = 1008
+BANDS    = 28
+ROWS     = 36
+SHINGLES = 20000
 
-SHINGLE_BUCKETS   = 1033  # Slightly above shingle count.
-BAND_BUCKETS      = 51503 # Slightly below maximum linear hash value.
+SHINGLE_BUCKETS   = 20177  # Slightly above shingle values.  [PRIME]
+BAND_BUCKETS      = 103549 # Some large number.              [PRIME]
 
 #--------------------------------------------------------------------------
 # HASHES
 
-SHINGLE_HASHES = np.randint(1, SHINGLES, size=(HASHES, 2))
+SHINGLE_HASHES = np.random.randint(1, SHINGLES, size=(HASHES, 2))
 
 def hash_shingle(i, shingle):
    """
@@ -36,7 +36,7 @@ def hash_shingle(i, shingle):
    """
    return (SHINGLE_HASHES[i][0]*shingle + SHINGLE_HASHES[i][1])%SHINGLE_BUCKETS
 
-BAND_HASHES = np.randint(1, BAND_BUCKETS, size=(HASHES, 2))
+BAND_HASHES = np.random.randint(1, BAND_BUCKETS, size=(HASHES, 2))
 
 def hash_band(i, signature):
    """
@@ -66,7 +66,7 @@ def produce_signature(shingles):
 
    @return: The minhash signature for the list of shingles.
    """
-   signature = np.full(HASHES, SHIN_BUCKETS, dtype=int)
+   signature = np.full(HASHES, SHINGLE_BUCKETS, dtype=int)
 
    # For each hash function, we need to iterate over all shingles and
    # evaluate their hash value. We keep track of the minimum and update
