@@ -54,8 +54,9 @@ end
 # ===Params:
 # +script+:: The script to execute.
 # +input+::  The input to redirect.
-def python(script, input) 
-   "printf  \"#{input}\" | #{PYTHON} #{script}" 
+def python(script, input=nil)
+   return "printf  \"#{input}\" | #{PYTHON} #{script}" if input
+   return "#{PYTHON} #{script}"
 end 
 
 # Creates a new observer thread that show the current progress made.
@@ -127,16 +128,19 @@ chunks[CHUNKCOUNT-1] = work.slice(
 
 puts "Last chunk size is bigger     [S = #{chunk_size}]"
 
+# Since we allready start a subprocess, using parallel here might not
+# do anything for us. I am pretty sure we could just write to all our
+# subprocesses, close all their standard input
 result = Parallel.map(
    chunks, 
    :progress      => 'Mapping',
    :in_processes  => PROCS
 ) do |chunk|
-   # Using the backticks is actually a pretty terrible idea. They have
-   # a maximum command length. Should really consider switching to popen
-   # or even Open3.
-   mapped = `#{python(MAPPER, chunk.join(' '))}`
-   mapped.split("\n")
+   IO.popen(python(MAPPER), 'r+') do |pipe|
+      chunk.each {|l| pipe.puts l}
+      pipe.close_write
+      pipe.read.split("\n")
+   end
 end
 
 # We currently have an array of arrays which we need to flatten.
@@ -203,8 +207,11 @@ result = Parallel.map(
    :progress      => 'Reducing',
    :in_processes  => PROCS
 ) do |chunk|
-   reduced = `#{python(REDUCER, chunk.join("\n"))}`
-   reduced.split("\n")
+   IO.popen(python(REDUCER), 'r+') do |pipe|
+      chunk.each {|l| pipe.puts l}
+      pipe.close_write
+      pipe.read.split("\n")
+   end
 end
 
 result.flatten!
