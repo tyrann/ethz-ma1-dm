@@ -3,22 +3,22 @@
 
 import numpy as np
 import sys
-
+P = 1019
 H = 1024
-R = 16
-B = 64
+R = 4
+B = 256
+N = 257
 
-#>>HASH_BEGIN
-#>>HASH_END
-
+# Hashes the video for each hash function and adds the computed
+# hash values to an array, defining one column of the signature.
 def hash_video(video, hashes):
    signature = []
    for h in hashes:
-      m = np.inf
+      m = P
       for s in video:
-         v = (h[0]*s + h[1])%H
+         v = (h[0]*s + h[1])%P
          m = m if m < v else v
-      signature.append(int(m))
+      signature.append(m)
    return signature
 
 def hash_band(band, signature, hashes):
@@ -28,7 +28,7 @@ def hash_band(band, signature, hashes):
    for r in xrange(0, R):
       h = hashes[s+r]
       v = v + h[0]*signature[s+r] + h[1]
-   v = v%H
+   v = v%N
    return v
 
 if __name__ == "__main__":

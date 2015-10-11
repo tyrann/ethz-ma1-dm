@@ -156,7 +156,7 @@ groups = result.group_by { |l| l[0] }
 File.open(TEMP_SORT, 'w') do |f|
    groups.each do |key, values|
       lines = values.map { |v| "#{v[0]}, #{v[1]}" }
-      f.write lines.join("\n")
+      f.write "#{lines.join("\n")}\n"
    end
 end
 
