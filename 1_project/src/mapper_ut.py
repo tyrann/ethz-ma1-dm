@@ -94,8 +94,9 @@ if __name__ == "__main__":
       video_id = int(line[6:15])
       shingles = np.fromstring(line[16:], dtype=int, sep=" ") 
 
-      signature = produce_signature(shingles)
-      value     = "%s>%s" % (video_id, '|'.join(signature))
+      signature    = produce_signature(shingles)
+      signaturestr = '|'.join([str(s) for s in signature])
+      value     = "%s>%s" % (video_id, signaturestr)
       for band in xrange(0, BANDS):
          h = hash_band(band, signature)
          print("(%s,%s), %s" % (band, h, value))

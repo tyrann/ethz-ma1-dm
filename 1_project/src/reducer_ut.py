@@ -9,8 +9,15 @@ def print_duplicates(videos):
     unique = np.unique(videos)
     for i in xrange(len(unique)):
         for j in xrange(i + 1, len(unique)):
-            print "%d\t%d" % (min(unique[i], unique[j]),
-                              max(unique[i], unique[j]))
+            videoi, sigi = unique[i].split('>')
+            videoj, sigj = unique[j].split('>')
+            sigvi = [int(v) for v in sigi.split('|')]
+            sigvj = [int(v) for v in sigj.split('|')]
+
+            hashes = max(len(sigvi), len(sigvj))
+            if np.equal(sigvi, sigvj).sum() / hashes > 0.9:
+                print "%d\t%d" % (min(unique[i], unique[j]),
+                                  max(unique[i], unique[j]))
 
 last_key = None
 key_count = 0
@@ -18,17 +25,17 @@ duplicates = []
 
 for line in sys.stdin:
     line = line.strip()
-    key, video_id = line.split(", ")
+    key, value = line.split(", ")
 
     if last_key is None:
         last_key = key
 
     if key == last_key:
-        duplicates.append(int(video_id))
+        duplicates.append(value)
     else:
         # Key changed (previous line was k=x, this line is k=y)
         print_duplicates(duplicates)
-        duplicates = [int(video_id)]
+        duplicates = [value]
         last_key = key
 
 if len(duplicates) > 0:
