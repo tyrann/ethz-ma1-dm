@@ -1,6 +1,5 @@
 require 'thread'
-require 'open3'
-require 'ruby-progressbar'
+require 'parallel'
 
 #------------------------------------------------------------------------------
 # Globals.
@@ -12,7 +11,7 @@ SCRIPT_DIR  = File.dirname(__FILE__)
 
 #------------------------------------------------------------------------------
 # File paths.
-DATA        = File.join(SCRIPT_DIR, '../data/training-small.txt')
+DATA        = File.join(SCRIPT_DIR, '../data/training.txt')
 MAPPER      = File.join(SCRIPT_DIR, '../src/mapper_ut.py' )
 REDUCER     = File.join(SCRIPT_DIR, '../src/reducer_ut.py')
 
@@ -45,126 +44,90 @@ end
 #
 # ===Params:
 # +script+:: The script to execute.
-def python(script) 
-   "#{PYTHON} #{script}" 
+# +input+::  The input to redirect.
+def python(script, input) 
+   "printf  \"#{input}\" | #{PYTHON} #{script}" 
 end 
 
-class Mapper
+# Creates a new observer thread that show the current progress made.
+#
+# ===Params:
+# +title+:: The title of the observer.
+# +min+::   The minimum value.
+# +max+::   The maximum value.
+# +block+:: A block (current, min, max) => (current, stop)
+def observer(title, min, max, &block)
+   Thread.new do 
+      c = 0
+      f = true
 
-   # Initializes a new mapper.
-   #
-   # ===Note:
-   # The mapper will use an external subprocess holding the python script
-   # and the python instance. It will then forward all workload to that
-   # python instance.
-   def initialize(id)
-      @id = id || 0
-      @sc = MAPPER
-   end
+      loop do
+         if not f 
+            print "\r"
+         end
 
-   # Starts working on a job queue.
-   #
-   # ===Params:
-   # +queue+:: The job queue.
-   def start(queue)
-      i, o, e, t = Open3.popen3(PYTHON, @sc)
-      @stdin  = i
-      @stdout = o
-      @stderr = e
+         c, s = block.call(c, min, max)
 
-      @stdin.sync = true
+         print "#{title} : #{c}/#{max}"
+         f = false
 
-      @thread = Thread.new do 
-         Thread.current[:output] = work(queue)
+         break if s
+         sleep(5)
       end
-   end
-
-   # Gets the outputs of the mapper.
-   #
-   # ===Note:
-   # This method blocks the calling thread until the mapper thread has
-   # finished its work. It will then return an array of lines the mapper
-   # has produced.
-   def read()
-      @thread.join
-      @stdout.close
-      @stderr.close
-
-      @thread[:output]
-   end
-
-   # Works on a job in the current thread.
-   #
-   # ===Params:
-   # +queue+:: The job queue.
-   def work(queue)
-      if @stdin.nil?    or 
-         @stdout.nil?   or
-         @stderr.nil?   then
-         print "Could not establish connection.\n"
-
-         Thread.current.stop
-      end
-
-      while not queue.empty?
-         job = queue.pop
-
-         @stdin.write job
-      end
-
-      @stdin.close
-      @stdout.readlines
-   end
-
-   # Checks if the mapper is done.
-   def done?()
-      @thread.stop?
    end
 end
 
 #--------------------------------------------------------------------------
 # SCRIPT
 
-work_queue = Queue.new
 
 # The idea is simple. We read all the work lines from our training data and
 # then forward the data to mappers and reducers in parallel.
-File.open(DATA, 'r') do |data_file|
+work = File.open(DATA, 'r') do |data_file|
    text = data_file.read
    text.gsub!(/\r\n?/, "\n")
-   text.each_line {|l| work_queue << l}
+   text.lines.to_a
 end
 
-puts "Starting Map Reduce Process [N = #{work_queue.length}]"
+PROCS       = 8
+LOAD        = work.length
+CHUNKSIZE   = 5
+CHUNKCOUNT  = LOAD/CHUNKSIZE
 
-# Setup output and mappers.
-results  = Array.new
-mappers  = Array.new(8) {|i| Mapper.new i }
+puts "Starting Map Reduce Process [N = #{LOAD}]"
+puts "Dividing data into Chunks   [S = #{CHUNKSIZE}]"
+puts "Setting up separate Chunks  [C = #{CHUNKCOUNT}]"
+puts "Using multiple processes    [P = #{PROCS}]"
 
-# Setup progress bar.
-progress = Thread.new do 
-   total   = work_queue.length
-   current = total - work_queue.length
+chunks = Array.new(CHUNKCOUNT)
 
-   bar = ProgressBar.create(
-      :starting_at => 0,
-      :total       => total,
-      :title       => 'Mapping',
-      :format      => '%t [%c/%C] |%B|'
+(CHUNKCOUNT-1).times do |t|
+   chunk_start = t * CHUNKSIZE
+   chunks[t] = work.slice(
+      chunk_start,
+      CHUNKSIZE
    )
-
-   while not work_queue.empty?
-      sleep(1)
-                        
-      bar.progress = total - work_queue.length
-      bar.refresh
-   end
 end
 
-# Start the mappers and wait for results.
-mappers.each { |m| m.start(work_queue) }
-mappers.each { |m| results.concat m.read }
+chunk_start = (CHUNKCOUNT-1)*CHUNKSIZE
+chunk_size  = work.length - chunk_start
+chunks[CHUNKCOUNT-1] = work.slice(
+   chunk_start,
+   chunk_size
+)
 
-progress.join
+puts "Last chunk size is bigger   [S = #{chunk_size}]"
 
-puts results
+result = Parallel.map(
+   chunks, 
+   :progress      => 'Mapping',
+   :in_processes  => PROCS
+) do |chunk|
+   mapped = `#{python(MAPPER, chunk.join(' '))}`
+   mapped.split("\n")
+end
+
+# We currently have an array of arrays which we need to flatten.
+result.flatten!
+
+puts "Finished mapping. [N = #{result.length}]"
