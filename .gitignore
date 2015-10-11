@@ -57,6 +57,7 @@ docs/_build/
 target/
 
 # Temporaries
-tools/temp_reduce
-tools/temp_map
-tools/temp_sort
+log.txt
+**/tools/temp_reduce
+**/tools/temp_map
+**/tools/temp_sort

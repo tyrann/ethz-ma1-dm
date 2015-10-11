@@ -3,56 +3,69 @@
 
 import numpy as np
 import sys
-P = 1019
-H = 1024
-R = 4
-B = 256
-N = 257
 
-# Hashes the video for each hash function and adds the computed
-# hash values to an array, defining one column of the signature.
-def hash_video(video, hashes):
-   signature = []
-   for h in hashes:
-      m = P
-      for s in video:
-         v = (h[0]*s + h[1])%P
-         m = m if m < v else v
-      signature.append(m)
+# VERY IMPORTANT:
+# Make sure that each machine is using the
+# same seed when generating random numbers for the hash functions.
+np.random.seed(seed=42)
+
+ROWS  = 32
+BANDS = 32
+
+HMAX  = int(sys.maxint/1024)
+
+HASHST = np.random.randint(0, HMAX, size=2)
+HASHES = np.random.randint(0, HMAX, size=1023)
+
+def sig(video):
+   signature = np.full(1024, 1019, dtype=int)
+   # Cheap generation of good hash values:
+   #
+   # http://stackoverflow.com/questions/19701052/how-many-hash-functions-are-
+   # required-in-a-minhash-algorithm/19711615#19711615
+   for shingle in video:
+      hash_value = (HASHST[0]*shingle + HASHST[1])%1024
+
+      # Check if this is the new minimum hash.
+      if hash_value < signature[0]:
+         signature[0] = hash_value
+
+      # Do the same for the other 1023 hashes.
+      for hash_index in xrange(0, 1023):
+         signature_index = hash_index + 1
+         next_hash_value = (hash_value ^ HASHES[hash_index])%1024
+
+         if next_hash_value < signature[signature_index]:
+            signature[signature_index] = next_hash_value
+
    return signature
 
-def hash_band(band, signature, hashes):
-   s = band*R
-   e = band*R + R
-   v = 0 
-   for r in xrange(0, R):
-      h = hashes[s+r]
-      v = v + h[0]*signature[s+r] + h[1]
-   v = v%N
-   return v
+def band(video, id):
+   # Get the signature column for the video first.
+   # Then iterate over the signature and compute the hash for each band.
+   signature = sig(video)
+
+   for b in xrange(0, BANDS):
+      hash_value = 0
+      for r in xrange(0, ROWS):
+         sig_index   = b*ROWS + r
+         sig_value   = signature[sig_index]
+         hash_index  = sig_index - 1
+         next_hash   = (HASHST[0]*sig_value + HASHST[1])
+         next_hash  ^= HASHES[hash_index]
+         hash_value  = (next_hash + hash_value)%104729
+      print("(%s,%s), %s"%(b, hash_value%104729, id))
+
 
 if __name__ == "__main__":
-   # VERY IMPORTANT:
-   # Make sure that each machine is using the
-   # same seed when generating random numbers for the hash functions.
-   np.random.seed(seed=42)
-
    # Generate hash functions.
    # Problem:  Can we know the number of buckets we need?
    # Answer:   Just assume a number of buckets and hash away?
-   hashes = np.random.randint(1, H-1, size=(H,2))
 
    for line in sys.stdin:
       line = line.strip()
       video_id = int(line[6:15])
-      shingles = np.fromstring(line[16:], sep=" ") 
+      shingles = np.fromstring(line[16:], dtype=int, sep=" ") 
 
-      # video_id is a single integer.
-      # shingles is a 1 by n array of integers.
-      sig = hash_video(shingles, hashes)
-
-      # sig is a 1 by NUM_HASHES array of integers.
-      for b in xrange(0, B):
-         bucket = hash_band(b, sig, hashes)
-         print("(%s,%s), %s"%(b, bucket, video_id))
+      band(shingles, video_id)
         
