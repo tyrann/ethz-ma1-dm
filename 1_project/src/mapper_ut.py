@@ -9,63 +9,88 @@ import sys
 # same seed when generating random numbers for the hash functions.
 np.random.seed(seed=42)
 
-ROWS  = 32
-BANDS = 32
+#--------------------------------------------------------------------------
+# CONSTANTS
 
-HMAX  = int(sys.maxint/1024)
+HASHES   = 1000
+SHINGLES = 1024
+BANDS    = 20
+ROWS     = 50
 
-HASHST = np.random.randint(0, HMAX, size=2)
-HASHES = np.random.randint(0, HMAX, size=1023)
+SHINGLE_BUCKETS   = 1033  # Slightly above shingle count.
+BAND_BUCKETS      = 51503 # Slightly below maximum linear hash value.
 
-def sig(video):
-   signature = np.full(1024, 1019, dtype=int)
-   # Cheap generation of good hash values:
-   #
-   # http://stackoverflow.com/questions/19701052/how-many-hash-functions-are-
-   # required-in-a-minhash-algorithm/19711615#19711615
-   for shingle in video:
-      hash_value = (HASHST[0]*shingle + HASHST[1])%1024
+#--------------------------------------------------------------------------
+# HASHES
 
-      # Check if this is the new minimum hash.
-      if hash_value < signature[0]:
-         signature[0] = hash_value
+SHINGLE_HASHES = np.randint(1, SHINGLES, size=(HASHES, 2))
 
-      # Do the same for the other 1023 hashes.
-      for hash_index in xrange(0, 1023):
-         signature_index = hash_index + 1
-         next_hash_value = (hash_value ^ HASHES[hash_index])%1024
+def hash_shingle(i, shingle):
+   """
+   Return the hash of the shingle for the i-th hash function.
 
-         if next_hash_value < signature[signature_index]:
-            signature[signature_index] = next_hash_value
+   @param i:         The index of the hash function to use.
+   @param shingle:   The shingle to produce a hash of.
+
+   @return: The hash value of the shingle between 0 and SHIN_BUCKETS.
+   """
+   return (SHINGLE_HASHES[i][0]*shingle + SHINGLE_HASHES[i][1])%SHINGLE_BUCKETS
+
+BAND_HASHES = np.randint(1, BAND_BUCKETS, size=(HASHES, 2))
+
+def hash_band(i, signature):
+   """
+   Return the hash value of the specified band in the signature.
+
+   @param i:         The index of the band to be hashed.
+   @param signature: The signature to extract the band from.
+
+   @return: The hash value of the band between 0 and BAND_BUCKETS.
+   """
+   start_index = ROWS*i
+   end_index   = ROWS*(i+1)
+   hash_value  = 0
+   for i in xrange(start_index, end_index):
+      hash_value += BAND_HASHES[i][0]*signature[i] + BAND_HASHES[i][1]
+
+   return hash_value % BAND_BUCKETS
+
+#--------------------------------------------------------------------------
+# MINHASH
+
+def produce_signature(shingles):
+   """
+   Produces a minhash signature for the specified list of shingles.
+
+   @param shingles: A list of shingles.
+
+   @return: The minhash signature for the list of shingles.
+   """
+   signature = np.full(HASHES, SHIN_BUCKETS, dtype=int)
+
+   # For each hash function, we need to iterate over all shingles and
+   # evaluate their hash value. We keep track of the minimum and update
+   # it along the way.
+   for hi in xrange(0, HASHES):
+      for sh in shingles:
+         h = hash_shingle(hi, sh)
+
+         if h < signature[hi]:
+            signature[hi] = h
 
    return signature
 
-def band(video, id):
-   # Get the signature column for the video first.
-   # Then iterate over the signature and compute the hash for each band.
-   signature = sig(video)
-
-   for b in xrange(0, BANDS):
-      hash_value = 0
-      for r in xrange(0, ROWS):
-         sig_index   = b*ROWS + r
-         sig_value   = signature[sig_index]
-         hash_index  = sig_index - 1
-         next_hash   = (HASHST[0]*sig_value + HASHST[1])
-         next_hash  ^= HASHES[hash_index]
-         hash_value  = (next_hash + hash_value)%104729
-      print("(%s,%s), %s"%(b, hash_value%104729, id))
-
+#--------------------------------------------------------------------------
+# LOCALITY SENSITIVE HASHING
 
 if __name__ == "__main__":
-   # Generate hash functions.
-   # Problem:  Can we know the number of buckets we need?
-   # Answer:   Just assume a number of buckets and hash away?
-
    for line in sys.stdin:
-      line = line.strip()
+      line     = line.strip()
       video_id = int(line[6:15])
       shingles = np.fromstring(line[16:], dtype=int, sep=" ") 
 
-      band(shingles, video_id)
+      signature = produce_signature(shingles)
+      for band in xrange(0, BANDS):
+         h = hash_band(band, signature)
+         print("(%s,%s), %s" % (band, h, video_id))
         
