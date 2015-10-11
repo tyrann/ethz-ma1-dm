@@ -14,15 +14,15 @@ np.random.seed(seed=42)
 
 SHINGLES = 20000
 
-BANDS    = 28
-ROWS     = 36
+BANDS    = 32
+ROWS     = 32
 HASHES   = BANDS*ROWS
 
 SHINGLE_BUCKETS   = 20177  # Slightly above shingle values.  [PRIME]
 BAND_BUCKETS      = 103549 # Some large number.              [PRIME]
 
 # CHECKS
-if HASHES >= 1024:
+if HASHES > 1024:
    sys.exit("Too many hash functions: %d" % HASHES)   
 
 #--------------------------------------------------------------------------
@@ -40,25 +40,6 @@ def hash_shingle(i, shingle):
    @return: The hash value of the shingle between 0 and SHIN_BUCKETS.
    """
    return (SHINGLE_HASHES[i][0]*shingle + SHINGLE_HASHES[i][1])%SHINGLE_BUCKETS
-
-BAND_HASHES = np.random.randint(1, BAND_BUCKETS, size=(HASHES, 2))
-
-def hash_band(i, signature):
-   """
-   Return the hash value of the specified band in the signature.
-
-   @param i:         The index of the band to be hashed.
-   @param signature: The signature to extract the band from.
-
-   @return: The hash value of the band between 0 and BAND_BUCKETS.
-   """
-   start_index = ROWS*i
-   end_index   = ROWS*(i+1)
-   hash_value  = 0
-   for i in xrange(start_index, end_index):
-      hash_value += BAND_HASHES[i][0]*signature[i] + BAND_HASHES[i][1]
-
-   return hash_value % BAND_BUCKETS
 
 #--------------------------------------------------------------------------
 # MINHASH
@@ -88,16 +69,65 @@ def produce_signature(shingles):
 #--------------------------------------------------------------------------
 # LOCALITY SENSITIVE HASHING
 
+BAND_HASHES = np.random.randint(1, BAND_BUCKETS, size=(HASHES, 2))
+
+def hash_band(i, signature):
+   """
+   Return the hash value of the specified band in the signature.
+
+   @param i:         The index of the band to be hashed.
+   @param signature: The signature to extract the band from.
+
+   @return: The hash value of the band between 0 and BAND_BUCKETS.
+   """
+   start_index = ROWS*i
+   end_index   = ROWS*(i+1)
+   hash_value  = 0
+   for i in xrange(start_index, end_index):
+      hash_value += BAND_HASHES[i][0]*signature[i] + BAND_HASHES[i][1]
+
+   return hash_value % BAND_BUCKETS
+
+#--------------------------------------------------------------------------
+# MAIN
+
+def prepare(line):
+   """
+   Prepares a line for further processing. Extracts the video id and 
+   the shingles from the line.
+
+   @param line: The line to process.
+
+   @return: The video id and the shingles of the video.
+   """
+   line = line.strip()
+   vid  = int(line[6:15])
+   shin = np.fromstring(line[16:], dtype=int, sep= " ")
+
+   return (vid, shin)
+
+def emit(vid, band, hashv, sig):
+   """
+   Emits a new mapped pair consisting of a key defined by the band
+   and the hash value and a value consisting of the video id followed
+   by the signature as string.
+
+   param vid:   The id of the video.
+   param band:  The band of the hash.
+   param hashv: The hash value of the band.
+   param sig:   The hashed signature.
+   """
+   sigstr = '.'.join([str(s) for s in sig])
+   key = "(%s,%s)" % (band, hashv)
+   val = "(%s,%s)" % (vid, sigstr)
+
+   print("%s, %s" % (key, val))
+
 if __name__ == "__main__":
    for line in sys.stdin:
-      line     = line.strip()
-      video_id = int(line[6:15])
-      shingles = np.fromstring(line[16:], dtype=int, sep=" ") 
-
-      signature    = produce_signature(shingles)
-      signaturestr = '|'.join([str(s) for s in signature])
-      value     = "%s>%s" % (video_id, signaturestr)
+      vid, shingles = prepare(line)
+      signature     = produce_signature(shingles)
       for band in xrange(0, BANDS):
-         h = hash_band(band, signature)
-         print("(%s,%s), %s" % (band, h, value))
+         hashv = hash_band(band, signature)
+         emit(vid, band, hashv, signature)
         
