@@ -12,13 +12,18 @@ np.random.seed(seed=42)
 #--------------------------------------------------------------------------
 # CONSTANTS
 
-HASHES   = 1008
+SHINGLES = 20000
+
 BANDS    = 28
 ROWS     = 36
-SHINGLES = 20000
+HASHES   = BANDS*ROWS
 
 SHINGLE_BUCKETS   = 20177  # Slightly above shingle values.  [PRIME]
 BAND_BUCKETS      = 103549 # Some large number.              [PRIME]
+
+# CHECKS
+if HASHES >= 1024:
+   sys.exit("Too many hash functions: %d" % HASHES)   
 
 #--------------------------------------------------------------------------
 # HASHES
