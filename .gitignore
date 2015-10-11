@@ -55,3 +55,8 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Temporaries
+tools/temp_reduce
+tools/temp_map
+tools/temp_sort
