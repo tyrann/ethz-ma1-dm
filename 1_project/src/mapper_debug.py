@@ -26,6 +26,17 @@ if HASHES > 1024:
    sys.exit("Too many hash functions: %d" % HASHES)   
 
 #--------------------------------------------------------------------------
+# DEBUG
+
+def debug(line):
+   sys.stderr.write(("%s" % (line)) + "\n")
+
+def debug_band(b, s, h):
+   start = ROWS*b
+   end   = ROWS*(b+1)
+   debug('[{:>3} | {:>3}] {:>30}'.format(b, h, s[start:end]))
+
+#--------------------------------------------------------------------------
 # PRIMES
 
 def primesfrom3to(n):
@@ -39,6 +50,8 @@ def primesfrom3to(n):
 PRIMES = primesfrom3to(SHINGLES)
 A_PRIMES = PRIMES[0:HASHES]
 B_PRIMES = PRIMES[HASHES:2*HASHES]
+
+debug(PRIMES)
 
 #--------------------------------------------------------------------------
 # HASHES
@@ -71,18 +84,38 @@ def produce_signature(shingles):
    # evaluate their hash value. We keep track of the minimum and update
    # it along the way.
    for hi in xrange(0, HASHES):
+      hv  = np.zeros(shingles.size, dtype=int)
+      hvi = 0
       for sh in shingles:
          h = hash_shingle(hi, sh)
+         hv[hvi] = h
+         hvi += 1
 
          if h < signature[hi]:
             signature[hi] = h
+
+      hus = np.unique(hv)
+      shs = shingles
+      if hus != shs:
+         debug("Signature is not a valid permutation. %s != %s" % (hus.size, shs.size))
+         debug("HASH_A: %s, HASH_B: %s" % (A_PRIMES[hi], B_PRIMES[hi]))
+
+         seen = set()
+         dupl = []
+         indx = 0
+         for h in hv:
+            if h not in seen:
+               seen.add(h)
+            else:
+               dupl.append((h, indx))
+            indx += 1
+
+         debug("%s" % (dupl))
 
    return signature
 
 #--------------------------------------------------------------------------
 # LOCALITY SENSITIVE HASHING
-
-BAND_HASHES = np.random.randint(1, BAND_BUCKETS, size=(HASHES, 2))
 
 def hash_band(i, signature):
    """
@@ -95,13 +128,11 @@ def hash_band(i, signature):
    """
    start_index = ROWS*i
    end_index   = ROWS*(i+1)
-   hash_base   = 17
    hash_value  = 0
    for i in xrange(start_index, end_index):
-      hash_value += hash_base*signature[i]
-      hash_base  *= 17
+      hash_value += B_PRIMES[i]*signature[i]
 
-   return (hash_value + 1223) % BAND_BUCKETS
+   return hash_value % BAND_BUCKETS
 
 #--------------------------------------------------------------------------
 # MAIN
@@ -142,7 +173,14 @@ if __name__ == "__main__":
    for line in sys.stdin:
       vid, shingles = prepare(line)
       signature     = produce_signature(shingles)
+
+      debug('********************************')
+      debug('Video %s' % (vid))
+      debug('')
+
       for band in xrange(0, BANDS):
          hashv = hash_band(band, signature)
-         emit(vid, band, hashv, signature)
+         debug_band(band, signature, hashv)
+         # emit(vid, band, hashv, signature)
+
         

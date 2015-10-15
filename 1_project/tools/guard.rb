@@ -20,13 +20,19 @@ P = File.join(D, 'max')
 B = File.join(D, 'best')
 
 m = File.open(P, 'r') { |f| f.gets.to_f }
+p = true
 
 loop do
-   puts "Looking for unprocessed instances..."
-   instances = Dir.entries(Q).delete_if { |e| e == '.' or e == '..' }
+   if p
+      puts "----------------------------------------------------------"
+      puts "Looking for unprocessed instances...\n"
+   end
 
-   while not instances.empty?
-      rel_path  = instances.pop
+   i = Dir.entries(Q).delete_if { |e| e == '.' or e == '..' }
+   p = !i.empty?
+
+   while not i.empty?
+      rel_path  = i.pop
       full_path = File.join(Q, rel_path)
       done_path = File.join(D, rel_path)
       puts "  -> Found an instance: #{rel_path}..."
@@ -35,9 +41,6 @@ loop do
       files    = Dir.entries(full_path)
       mappers  = files.select { |f| f.include? "mapper"} 
       reducers = files.select { |f| f.include? "reducer"}
-
-      puts mappers
-      puts reducers
 
       # If there is an ambiguity, go on to the next instance.
       next if mappers.length  > 1 or mappers.empty?
