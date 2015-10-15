@@ -2,6 +2,8 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage[pdftex]{hyperref}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
 
 % Lengths and indenting
 \setlength{\textwidth}{16.5cm}
@@ -18,15 +20,30 @@
 \renewcommand{\familydefault}{\sfdefault}
 
 \title{Data Mining: Learning from Large Data Sets - Fall Semester 2015}
-\author{member1@student.ethz.ch\\ member2@student.ethz.ch\\ member3@student.ethz.ch\\}
+\author{mmarti@student.ethz.ch\\ trubeli@student.ethz.ch\\}
 \date{\today}
 
 \begin{document}
 \maketitle
 
 \section*{Approximate near-duplicate search using Locality Sensitive Hashing} 
-Briefly describe the steps used to produce the solution. Feel
-free to add plots or screenshots if you think it's necessary. The
-report should contain a maximum of 2 pages.
+In this project we used linear hashing to approximate the similarity between videos, represented by a list of shingles. The first step in our solution was to produce a signature matrix. This matrix is obtained by using a min hash algorithm on each list of shingles. For every $i^{th}$ shingle in a video we pick two random numbers $a_{i}$ and $b_{i}$ which are coprime. The procedure for computing the signature matrix is described as follow:
+\vspace{10mm}
+\begin{algorithm}
+	\caption{Min Hash Algorithm}\label{euclid}
+	\begin{algorithmic}[1]
+		\Initialize
+		\Procedure{MinHash}{$N,K$}\Comment{K hash fonction applied on N shingles}		
+		\For{$i = 1 $ \textbf{to} $n$}
+			\For{$j = 1 $ \textbf{to} $k$}
+			\If{$h_{j}(n_{i}) < c_{j}$}
+				\State{$c_{j} \gets h_{j}(n_{i})$}
+			\EndIf
+			\EndFor
+		\EndFor
+	
+		\EndProcedure
+	\end{algorithmic}
+\end{algorithm}
 
 \end{document} 
