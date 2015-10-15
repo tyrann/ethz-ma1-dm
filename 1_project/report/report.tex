@@ -5,6 +5,11 @@
 \usepackage{algorithm}
 \usepackage[noend]{algpseudocode}
 
+\algnewcommand{\Initialize}[1]{%
+	\State \textbf{Initialize:}
+	\Statex \hspace*{\algorithmicindent}\parbox[t]{.8\linewidth}{\raggedright #1}
+}
+
 % Lengths and indenting
 \setlength{\textwidth}{16.5cm}
 \setlength{\marginparwidth}{1.5cm}
@@ -32,12 +37,12 @@ In this project we used linear hashing to approximate the similarity between vid
 \begin{algorithm}
 	\caption{Min Hash Algorithm}\label{euclid}
 	\begin{algorithmic}[1]
-		\Initialize
-		\Procedure{MinHash}{$N,K$}\Comment{K hash fonction applied on N shingles}		
+		\Procedure{MinHash}{$N,K$}\Comment{K hash fonction applied on N shingles}
+		\Initialize{\strut$w_l \gets \infty$, $l=1,\ldots,k$}	
 		\For{$i = 1 $ \textbf{to} $n$}
 			\For{$j = 1 $ \textbf{to} $k$}
-			\If{$h_{j}(n_{i}) < c_{j}$}
-				\State{$c_{j} \gets h_{j}(n_{i})$}
+			\If{$h_{j}(n_{i}) < w_{j}$}
+				\State{$w_{j} \gets h_{j}(n_{i})$}
 			\EndIf
 			\EndFor
 		\EndFor
