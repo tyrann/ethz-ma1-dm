@@ -61,3 +61,5 @@ log.txt
 **/tools/temp_reduce
 **/tools/temp_map
 **/tools/temp_sort
+queue/
+done/

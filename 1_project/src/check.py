@@ -49,4 +49,4 @@ if precision + recall == 0:
     print ("Both precision and recall are 0.")
 else:
     f1 = 2.0 * precision * recall / (precision + recall)
-    print "Precision = %f, recall = %f, F1 = %f" % (precision, recall, f1)
+    print "Precision = %f, Recall = %f, F = %f" % (precision, recall, f1)

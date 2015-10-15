@@ -7,7 +7,7 @@ import sys
 #--------------------------------------------------------------------------
 # CONSTANTS
 
-SIMILAIRTY_THRESHOLD = 0.89
+SIMILAIRTY_THRESHOLD = 0.9
 
 #--------------------------------------------------------------------------
 # VALUE EXTRACTION
@@ -49,15 +49,16 @@ def similarity(sig1, sig2):
 # OUTPUT
 
 def emit_similar(videos):
+    count  = 0
     unique = np.unique(videos)
     for i in xrange(len(unique)):
         for j in xrange(i + 1, len(unique)):
             vid1, sig1 = prepare(unique[i])
             vid2, sig2 = prepare(unique[j])
 
-            if similarity(sig1, sig2) > SIMILAIRTY_THRESHOLD:
-                print "%d\t%d" % (min(vid1, vid2),
-                                  max(vid1, vid2))
+            # if similarity(sig1, sig2) >= SIMILAIRTY_THRESHOLD:
+            print "%d\t%d" % (min(vid1, vid2),
+                              max(vid1, vid2))
 
 
 #--------------------------------------------------------------------------
