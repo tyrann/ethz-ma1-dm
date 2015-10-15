@@ -30,7 +30,7 @@ MS = Path.source M
 MT = File.join(U, M)
 
 RS = Path.source R
-RT = File.join(U, M)
+RT = File.join(U, R)
 
 abort 'Mapper does not exist.'  if not File.exist? MS
 abort 'Reducer does not exist.' if not File.exist? RS

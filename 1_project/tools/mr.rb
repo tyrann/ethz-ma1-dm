@@ -11,6 +11,14 @@ include Threaded
 
 module MapReduce
    class Instance
+      attr_reader :fitness
+      attr_reader :precision
+      attr_reader :recall
+
+      attr_reader :true_positives
+      attr_reader :false_positives
+      attr_reader :false_negatives
+
       # Initializes a new map reduce instance with the specified options.
       #
       # === Options:
@@ -22,6 +30,14 @@ module MapReduce
       # :store_reduce   [OPTIONAL]: The name of the reducer output file.
       # :store_sort     [OPTIONAL]: The name of the sorter output file.
       def initialize(options)
+         @fitness   = 0.0
+         @precision = 0.0
+         @recall    = 0.0
+
+         @true_positives  = 0
+         @false_positives = 0
+         @false_negatives = 0
+
          @instance = options.fetch :instance, nil
          raise Exception.new 'No instance directory.' unless @instance
          raise Exception.new 'No instance directory.' unless File.exist? @instance
@@ -75,15 +91,24 @@ module MapReduce
          File.open(@st_red, 'w') { |f| f.write(reduced.join)} if @st_red
 
          # EVALUATING
-         if @st_red
-            cmd = Shell.python(Path::PATH_EVAL)
-            cmd << " #{@st_red}"
-            cmd << " #{Path::PATH_DUPL}"
+         cmd = Shell.python(Path::PATH_EVAL)
+         cmd << " #{@st_red}"
+         cmd << " #{Path::PATH_DUPL}"
+         result = %x[#{cmd}].split "\n"
 
-            result = %x[#{cmd}].split "\n"
-            puts result[0]
-            puts result[1]
-         end
+         puts result[0]
+         puts result[1]
+
+         # EXTRACT EVALUATION VALUES
+         result[0].match /TP = (?<tp>\d+) FP = (?<fp>\d+) FN = (?<fn>\d+)/
+         @true_positives  = Regexp.last_match[:tp].to_i
+         @false_positives = Regexp.last_match[:fp].to_i
+         @false_negatives = Regexp.last_match[:fn].to_i
+
+         result[1].match /Precision = (?<p>\d+\.\d+), Recall = (?<r>\d+\.\d+), F = (?<f>\d+\.\d+)/
+         @fitness   = Regexp.last_match[:f].to_f
+         @precision = Regexp.last_match[:p].to_f
+         @recall    = Regexp.last_match[:r].to_f
       end
    end
 end
