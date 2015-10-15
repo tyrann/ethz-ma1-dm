@@ -63,3 +63,8 @@ log.txt
 **/tools/temp_sort
 queue/
 done/
+
+#latex
+*.out
+*.aux
+*.synctex.gz
