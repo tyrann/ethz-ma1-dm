@@ -14,8 +14,8 @@ np.random.seed(seed=42)
 
 SHINGLES = 20000
 
-BANDS    = 32
-ROWS     = 32
+BANDS    = 60
+ROWS     = 17
 HASHES   = BANDS*ROWS
 
 SHINGLE_BUCKETS   = 20177  # Slightly above shingle values.  [PRIME]
