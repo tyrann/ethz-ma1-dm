@@ -32,12 +32,18 @@
 \maketitle
 
 \section*{Approximate near-duplicate search using Locality Sensitive Hashing} 
-In this project we used linear hashing to approximate the similarity between videos, represented by a list of shingles. The first step in our solution was to produce a signature matrix. This matrix is obtained by using a min hash algorithm on each list of shingles. For every $i^{th}$ shingle in a video we pick two random numbers $a_{i}$ and $b_{i}$ which are coprime. The procedure for computing the signature matrix is described as follow:
-\vspace{10mm}
+In this project we used linear hashing to approximate the similarity between videos, represented by a list of shingles. The first step in our solution was to produce a signature matrix. This matrix is obtained by using a min hash algorithm on each list of shingles. For every $i^{th}$ shingle in a video we pick two random numbers $a_{i}$ and $b_{i}$ which are coprime. 
+The hash function is applied by computing:
+\begin{center}
+	$a_{i}*s_{i} + b_{i} \mod{n}$
+\end{center}
+Where $s_{i}$ is the $i^{th}$ shingle in a video and $n$ is the number of shingles.
+The procedure for computing the signature matrix is described as follow:
+\vspace{8pt}
 \begin{algorithm}
 	\caption{Min Hash Algorithm}\label{euclid}
 	\begin{algorithmic}[1]
-		\Procedure{MinHash}{$N,K$}\Comment{K hash fonction applied on N shingles}
+		\Procedure{MinHash}{$N,K$}\Comment{K hash fonction applied on each of the N shingles}
 		\Initialize{\strut$w_l \gets \infty$, $l=1,\ldots,k$}	
 		\For{$i = 1 $ \textbf{to} $n$}
 			\For{$j = 1 $ \textbf{to} $k$}
@@ -50,5 +56,24 @@ In this project we used linear hashing to approximate the similarity between vid
 		\EndProcedure
 	\end{algorithmic}
 \end{algorithm}
-
+\\This signature matrix is then split into $b$ bands of $r$ rows. In order to decrease the number false positive and false negative, we decided to use a combined r-way $AND$ and b-way $OR$ of hash function on the split matrix. While the original set of hash function was:
+\vspace{8pt}
+\begin{center}
+	$(d_{1},d_{2},p_{1},p_{2})$-sensitive
+\end{center}
+\vspace{8pt}
+for some $p_{1}$, $p_{2}$. The r-way $AND$ turns $F$ into a new family $F'$ which consists of vectors of hash functions in $F$. We therefore obtain a new family of hash functions s.t. each function in $F'$ is:
+\vspace{8pt}
+\begin{center}
+	$(d_{1},d_{2},p_{1}^r,p_{2}^r)$-sensitive
+\end{center}
+\vspace{8pt}
+Then, applying a b-way $OR$, we just require that at least one band has to be hashed to the same bucket in order for two videos to be considered similar. Therefore turning our family of hash functions into:
+\vspace{8pt}
+\begin{center}
+	$(d_{1},d_{2},1-(1-p_{1}^r)^b,1-(1-p_{2}^r)^b)$-sensitive
+\end{center}
+\vspace{8pt}
+The values of $b$ and $r$ have been tuned accordingly in order to find a sufficient ratio between false positive and false negative. Using values such as %Please add values we have for final submission
+we managed to obtain a score of 0.94.
 \end{document} 
