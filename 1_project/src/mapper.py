@@ -14,12 +14,14 @@ np.random.seed(seed=42)
 
 SHINGLES = 20000
 
-BANDS    = 32
-ROWS     = 32
+BANDS    = 80
+ROWS     = 12
 HASHES   = BANDS*ROWS
 
 SHINGLE_BUCKETS   = SHINGLES
-BAND_BUCKETS      = 103549  
+#BAND_BUCKETS      = 103549
+#BAND_BUCKETS      = 156673
+#BAND_BUCKETS      = 217219
 
 # CHECKS
 if HASHES > 1024:
@@ -37,6 +39,7 @@ def primesfrom3to(n):
     return 2*np.nonzero(sieve)[0][1::]+1
 
 PRIMES = primesfrom3to(SHINGLES)
+np.random.shuffle(PRIMES)
 A_PRIMES = PRIMES[0:HASHES]
 B_PRIMES = PRIMES[HASHES:2*HASHES]
 
@@ -95,13 +98,11 @@ def hash_band(i, signature):
    """
    start_index = ROWS*i
    end_index   = ROWS*(i+1)
-   hash_base   = 17
    hash_value  = 0
    for i in xrange(start_index, end_index):
-      hash_value += hash_base*signature[i]
-      hash_base  *= 17
+      hash_value = (hash_value + B_PRIMES[i]*signature[i]) %BAND_BUCKETS
 
-   return (hash_value + 1223) % BAND_BUCKETS
+   return (hash_value + A_PRIMES[42]) % BAND_BUCKETS
 
 #--------------------------------------------------------------------------
 # MAIN

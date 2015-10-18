@@ -31,10 +31,23 @@ if HASHES > 1024:
 def debug(line):
    sys.stderr.write(("%s" % (line)) + "\n")
 
-def debug_band(b, s, h):
+def debug_band(b, s, i, h):
    start = ROWS*b
    end   = ROWS*(b+1)
-   debug('[{:>3} | {:>3}] {:>30}'.format(b, h, s[start:end]))
+   debug('[{:>3} | {:>3}] {:>30}'.format(b, h, ','.join(["(%s,%s)\n" % (str(x), str(y)) for y in i[start:end] for x in s[start:end]])))
+
+def duplicates(source):
+   d = dict()
+   l = []
+   i = 0
+   for h in source:
+      if h not in d:
+         d[h] = i
+      else:
+         l.append((h, i))
+         l.append((h, d[h]))
+      i += 1
+   return l
 
 #--------------------------------------------------------------------------
 # PRIMES
@@ -48,6 +61,7 @@ def primesfrom3to(n):
     return 2*np.nonzero(sieve)[0][1::]+1
 
 PRIMES = primesfrom3to(SHINGLES)
+np.random.shuffle(PRIMES)
 A_PRIMES = PRIMES[0:HASHES]
 B_PRIMES = PRIMES[HASHES:2*HASHES]
 
@@ -78,41 +92,29 @@ def produce_signature(shingles):
 
    @return: The minhash signature for the list of shingles.
    """
-   signature = np.full(HASHES, SHINGLE_BUCKETS, dtype=int)
+   signature  = np.full(HASHES, SHINGLE_BUCKETS, dtype=int)
+   sigindices = np.zeros(HASHES, dtype=int)
 
    # For each hash function, we need to iterate over all shingles and
    # evaluate their hash value. We keep track of the minimum and update
    # it along the way.
    for hi in xrange(0, HASHES):
-      hv  = np.zeros(shingles.size, dtype=int)
-      hvi = 0
       for sh in shingles:
          h = hash_shingle(hi, sh)
-         hv[hvi] = h
-         hvi += 1
 
          if h < signature[hi]:
-            signature[hi] = h
+            signature[hi]  = h
+            sigindices[hi] = sh
 
-      hus = np.unique(hv)
-      shs = shingles
-      if hus != shs:
-         debug("Signature is not a valid permutation. %s != %s" % (hus.size, shs.size))
-         debug("HASH_A: %s, HASH_B: %s" % (A_PRIMES[hi], B_PRIMES[hi]))
+      # hus = np.unique(hv)
+      # shs = shingles
+      # if hus != shs:
+      #    debug("Signature is not a valid permutation. %s != %s" % (hus.size, shs.size))
+      #    debug("HASH_A: %s, HASH_B: %s" % (A_PRIMES[hi], B_PRIMES[hi]))
 
-         seen = set()
-         dupl = []
-         indx = 0
-         for h in hv:
-            if h not in seen:
-               seen.add(h)
-            else:
-               dupl.append((h, indx))
-            indx += 1
+      # debug("%s" % (duplicates(hv)))
 
-         debug("%s" % (dupl))
-
-   return signature
+   return (signature, sigindices)
 
 #--------------------------------------------------------------------------
 # LOCALITY SENSITIVE HASHING
@@ -130,9 +132,9 @@ def hash_band(i, signature):
    end_index   = ROWS*(i+1)
    hash_value  = 0
    for i in xrange(start_index, end_index):
-      hash_value += B_PRIMES[i]*signature[i]
+      hash_value = (hash_value + B_PRIMES[i]*signature[i]) %BAND_BUCKETS
 
-   return hash_value % BAND_BUCKETS
+   return (hash_value + A_PRIMES[42])% BAND_BUCKETS
 
 #--------------------------------------------------------------------------
 # MAIN
@@ -171,16 +173,24 @@ def emit(vid, band, hashv, sig):
 
 if __name__ == "__main__":
    for line in sys.stdin:
-      vid, shingles = prepare(line)
-      signature     = produce_signature(shingles)
+      vid, shingles        = prepare(line)
+      signature, indices   = produce_signature(shingles)
 
       debug('********************************')
       debug('Video %s' % (vid))
       debug('')
-
+      band_values = np.zeros(BANDS, dtype=int)
       for band in xrange(0, BANDS):
          hashv = hash_band(band, signature)
-         debug_band(band, signature, hashv)
-         # emit(vid, band, hashv, signature)
+         band_values[band] = hashv
+         emit(vid, band, hashv, signature)
+
+      for band in xrange(0, BANDS):
+         debug("B: %s, H: %s" % (band, band_values[band]))
+
+      ushingles = np.unique(shingles)
+      if ushingles.size != shingles.size:
+         debug("There are duplicate shingles! %s | %s" % (ushingles.size, shingles.size))
+         debug("%s" % (duplicates(shingles)))
 
         

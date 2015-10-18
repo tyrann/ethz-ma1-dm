@@ -43,29 +43,27 @@ def similarity(sig1, sig2):
     l2 = len(sig2)
     h = float(max(l1, l2))
 
-    return (sig1 == sig2).sum() / h
+    return (sig1 == sig2).sum()/h
 
 #--------------------------------------------------------------------------
 # OUTPUT
 
 def emit_similar(videos):
     count  = 0
-    unique = np.unique(videos)
+    mapped = [prepare(vid) for vid in videos]
+    lookup = {key: value   for (key, value) in mapped}
+    unique = np.unique([vid for (vid, sig) in mapped])
     for i in xrange(len(unique)):
         for j in xrange(i + 1, len(unique)):
-            vid1, sig1 = prepare(unique[i])
-            vid2, sig2 = prepare(unique[j])
-
-            # if similarity(sig1, sig2) >= SIMILAIRTY_THRESHOLD:
-            print "%d\t%d" % (min(vid1, vid2),
-                              max(vid1, vid2))
+            if similarity(lookup[unique[i]], lookup[unique[j]]) >= SIMILAIRTY_THRESHOLD:
+                print "%d\t%d" % (min(unique[i], unique[j]),
+                                  max(unique[i], unique[j]))
 
 
 #--------------------------------------------------------------------------
 # MAIN
 
 last_key    = None
-key_count   = 0
 candidates  = []
 
 for line in sys.stdin:
@@ -80,7 +78,7 @@ for line in sys.stdin:
     else:
         # Key changed (previous line was k=x, this line is k=y)
         emit_similar(candidates)
-        duplicates  = [video]
+        candidates  = [video]
         last_key    = key
 
 if len(candidates) > 0:

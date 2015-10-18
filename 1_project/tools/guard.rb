@@ -17,14 +17,15 @@ require_relative 'mr'
 Q = Path::PATH_QUEUE
 D = Path::PATH_DONE
 P = File.join(D, 'max')
-B = File.join(D, 'best')
+B = Path::PATH_BEST
+L = Path::PATH_LAST
 
 m = File.open(P, 'r') { |f| f.gets.to_f }
 p = true
 
 loop do
    if p
-      puts "----------------------------------------------------------"
+      puts "---------------------------------------------------------------------------------"
       puts "Looking for unprocessed instances...\n"
    end
 
@@ -35,7 +36,11 @@ loop do
       rel_path  = i.pop
       full_path = File.join(Q, rel_path)
       done_path = File.join(D, rel_path)
-      puts "  -> Found an instance: #{rel_path}..."
+      fitt_path = File.join(D, 'fitness')
+
+      puts "\n\n\n---------------------------------------------------------------------------------"
+      puts "- INSTANCE #{rel_path}"
+      puts "---------------------------------------------------------------------------------\n\n"
 
       # Look for the mapper and reducer files in the instance.
       files    = Dir.entries(full_path)
@@ -59,6 +64,12 @@ loop do
 
       # Move the instance to the done folder.
       %x[mv #{full_path} #{done_path}]
+      %x[rm -rf #{L}]
+      %x[cp -R #{done_path} #{L}]
+
+      File.open(fitt_path, 'w') { |f|
+         f.write mr.fitness
+      }
 
       if mr.fitness > m
          m = mr.fitness

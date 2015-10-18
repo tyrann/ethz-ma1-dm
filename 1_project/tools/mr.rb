@@ -80,7 +80,7 @@ module MapReduce
          sorted = mapped.group_by { |m| m.split(', ')[0] }
 
          if @st_sort
-            File.open(@st_sort, 'w') { |f| f.write sorted.values.join }
+            File.open(@st_sort, 'w') { |f| f.write sorted.values.flatten.join }
          end
 
          # REDUCING
