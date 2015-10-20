@@ -64,7 +64,12 @@ log.txt
 queue/
 done/
 
-#latex
+#LaTex
 *.out
 *.aux
 *.synctex.gz
+
+#Misc
+*.jpeg
+*.jpg
+*.zip
