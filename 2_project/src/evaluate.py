@@ -52,4 +52,6 @@ if __name__ == "__main__":
                     accuracy += 1
                 total += 1
 
+    print("%d" % (total))
+    print("%f" % (float(accuracy)))
     print("%f" % (float(accuracy) / total))

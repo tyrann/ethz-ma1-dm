@@ -8,7 +8,7 @@ module Path
    PATH_QUEUE  = File.join(PATH_SOURCE,   'queue')
    PATH_DONE   = File.join(PATH_SOURCE,   'done')
    PATH_DATA   = File.join(PATH_ROOT,     'data')
-   PATH_EVAL   = File.join(PATH_SOURCE,   'check.py')
+   PATH_EVAL   = File.join(PATH_SOURCE,   'evaluate.py')
    PATH_DUPL   = File.join(PATH_DATA,     'duplicates.txt')
    PATH_BEST   = File.join(PATH_DONE,     'best')
    PATH_LAST   = File.join(PATH_DONE,     'last')

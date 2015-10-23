@@ -20,7 +20,7 @@ P = File.join(D, 'max')
 B = Path::PATH_BEST
 L = Path::PATH_LAST
 
-m = File.open(P, 'r') { |f| f.gets.to_f }
+m = File.exist? P ? File.open(P, 'r') { |f| f.gets.to_f } : 0.0
 p = true
 
 loop do
@@ -68,11 +68,11 @@ loop do
       %x[cp -R #{done_path} #{L}]
 
       File.open(fitt_path, 'w') { |f|
-         f.write mr.fitness
+         f.write mr.score
       }
 
-      if mr.fitness > m
-         m = mr.fitness
+      if mr.score > m
+         m = mr.score
          File.open(P, 'w') { |f| f.puts m.to_s }
 
          %x[rm -rf #{B}]
