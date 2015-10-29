@@ -23,3 +23,6 @@ for line in sys.stdin:
 avgs=np.array(avgs)
 for i in xrange(0, avgs.size):
    avgs[i] /= lines
+
+list = avgs.toList()
+' '.join(list)
