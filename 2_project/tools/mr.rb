@@ -96,21 +96,6 @@ module MapReduce
 
          reduced = red_exec.script { Shell::Python.new @reducer }
          File.open(@st_red, 'w') { |f| f.write(reduced.join)} if @st_red
-
-         # EVALUATING
-         cmd = Shell.python(Path::PATH_EVAL)
-         cmd << " #{@st_red}"
-         result = %x[#{cmd}].split "\n"
-
-         puts "Results:"
-         puts " - Total:    #{result[0]}"
-         puts " - Accuracy: #{result[1]}"
-         puts " - Score:    #{result[2]}"
-
-         # EXTRACT EVALUATION VALUES
-         @total    = result[0].to_i
-         @accuracy = result[1].to_f
-         @score    = result[2].to_f
       end
    end
 end
