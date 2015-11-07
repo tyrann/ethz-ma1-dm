@@ -3,8 +3,10 @@
 
 import sys
 import numpy as np
+import sklearn
 from sklearn.linear_model  import SGDClassifier
 from sklearn.preprocessing import PolynomialFeatures
+
 
 DIMENSION = 400  # Dimension of the original data.
 CLASSES = (-1, +1)   # The classes that we are trying to predict.
@@ -28,7 +30,9 @@ def sgd_train(features,labels):
   emit(clf.coef_)
 
 def transform(x_original):
-  return x_original
+  t = PolynomialFeatures(degree=2)
+  x = t.fit_transform(x_original)
+  return x
 
 if __name__ == "__main__":
 
@@ -41,11 +45,12 @@ if __name__ == "__main__":
     (label, x_string) = line.split(" ", 1)
     label = int(label)
     x_original = np.fromstring(x_string, sep=' ')
-    x = transform(x_original)  # Use our features.
+
 
     # create a vector of feature
-    train_set.append(x)
+    train_set.append(x_original)
     train_labels.append(label)
 
   # train our model on the features
-  sgd_train(train_set, train_labels)
+  train_set_trans = transform(train_set)
+  sgd_train(train_set_trans, train_labels)
