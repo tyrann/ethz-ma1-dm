@@ -3,19 +3,16 @@
 
 import sys
 import numpy as np
-import sklearn
-from sklearn.linear_model  import SGDClassifier
-from sklearn.preprocessing import PolynomialFeatures
-
+import 0sklearn
+from sklearn import preprocessing as PP
+from sklearn import linear_model  as LM
 
 DIMENSION = 400  # Dimension of the original data.
 CLASSES = (-1, +1)   # The classes that we are trying to predict.
 
 # Emit an array of coefficient representing the model built on the current mapper
 def emit(coef):
- list=coef.tolist();
- flattened = [val for sublist in list for val in sublist]
- string=' '.join(str(x) for x in flattened)
+ string=' '.join(str(x) for x in coef)
  print("%s, %s" % (1, string))
     #return coef
 
@@ -25,15 +22,19 @@ def sgd_train(features,labels):
   y = labels
 
   # creates a classifier using hinge loss
-  clf = SGDClassifier()
+  clf = LM.SGDClassifier(loss='hinge')
   clf.fit(X, y)
-  emit(clf.coef_)
+  coef = clf.coef_
+  coef = [val for sublist in coef for val in sublist]
+  emit(coef)
 
 def transform(x_original):
-  t = PolynomialFeatures(degree=2)
-  x = t.fit_transform(x_original)
-  return x
-
+  take = [5, 20, 27, 31, 40, 41, 61, 249, 347]
+  newx = [x_original[i] for i in take]
+  t = PP.PolynomialFeatures(degree=2)
+  x = t.fit_transform([newx])
+  return x.flatten()[1:]
+   
 if __name__ == "__main__":
 
   train_set=[]
