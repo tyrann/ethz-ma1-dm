@@ -18,15 +18,19 @@
 \renewcommand{\familydefault}{\sfdefault}
 
 \title{Data Mining: Learning from Large Data Sets - Fall Semester 2015}
-\author{member1@student.ethz.ch\\ member2@student.ethz.ch\\ member3@student.ethz.ch\\}
+\author{mmarti@student.ethz.ch\\ trubeli@student.ethz.ch}
 \date{\today}
 
 \begin{document}
 \maketitle
 
 \section*{Extracting Representative Elements} 
-Briefly describe the steps used to produce the solution. Feel
-free to add plots or screenshots if you think it's necessary. The
-report should contain a maximum of 2 pages.
+For this project we used a parallel version of k-means on our dataset. In a first step we designed an algorithm that could run on an arbitrary number of map processes and that could be combined in one reduce process.
+\vspace{10pt}
+\\Firstly, we choose $k$ center randomly. Each map process gets a seed for the random number generator in order to make sure that the same centers are picked in each map process.
+The map process reads on the standard input and assigns each data point to one of the $k_{i}$ centers. The reduce process sums all the data points assigned to each center $k_{i}$ and compute the mean of this subset. This gives a new center which is used for these data points.
+
+
+ 
 
 \end{document} 
