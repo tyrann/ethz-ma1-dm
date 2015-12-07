@@ -37,9 +37,11 @@ for line in sys.stdin:
 for indx in xrange(CENTER_COUNT):
     cnt  = counts[indx]
 
-    if cnt > 0:
-        mean = means[indx]/cnt
-        mstr = ' '.join([str(f) for f in mean])
+    if cnt == 0:
+        cnt = 1
+        
+    mean = means[indx]/cnt
+    mstr = ' '.join([str(f) for f in mean])
 
-        print("(%d, %d|%s)" % (indx, cnt, mstr))
+    print("(%d, %d|%s)" % (indx, cnt, mstr))
     
