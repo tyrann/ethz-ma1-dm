@@ -3,6 +3,10 @@ use std::io;
 use std::fs;
 use std::process;
 
+use std::collections::{
+    HashMap,
+};
+
 use std::io::{
     Write,
     Read,
@@ -82,18 +86,11 @@ fn write_all_data<'a, T>(child: &mut process::Child, data: T) -> Result<()>
 
 fn write_all_balanced<'a, T>(children: &mut Vec<process::Child>, data: T) -> Result<()>
     where T: IntoIterator<Item = &'a str> {
-        let mut stdins = Vec::new();
-
-        unsafe {
-            for index in 0..children.len() {
-                let mut child = &mut *(children.get_unchecked_mut(index) as *mut process::Child);
-                let stdin = try!(child.stdin
-                    .as_mut()
-                    .ok_or(Error::new(ErrorKind::Other, "Could not access stdin.")));
-
-                stdins.push(stdin);
-            }
-        }
+        let instances = children.len();
+        let mut stdins: Vec<_> = children
+            .iter_mut()
+            .map(|child| child.stdin.as_mut())
+            .collect();
 
         // Write the actual data by going through the standard inputs in round robin fashion.
         // For this we need to extract an iterator from our data and keep track of an additional
@@ -102,9 +99,15 @@ fn write_all_balanced<'a, T>(children: &mut Vec<process::Child>, data: T) -> Res
         let mut index = 0;
 
         while let Some(v) = data.next() {
-            try!(stdins[index%children.len()].write_all(v.as_bytes()));
-            try!(stdins[index%children.len()].write_all("\n".as_bytes()));
-            index = index + 1;
+            let     error = Error::new(ErrorKind::Other, "Can not access stdin");
+            let mut stdin = match stdins[index%instances] {
+                Some(ref mut s) => s,
+                None            => return Err(error),
+            };
+
+            try!(stdin.write_all(v.as_bytes()));
+            try!(stdin.write_all("\n".as_bytes()));
+            index = index + 1;   
         };
 
         Ok(())
@@ -334,8 +337,8 @@ impl Parallel {
         let reducer = reducer.to_string();
 
         Parallel {
-            sorter_out:     "sorter_out".to_string(),
-            mapper_out:     mapper.clone() + ".out",
+            sorter_out:     mapper.clone()  + ".sorted",
+            mapper_out:     mapper.clone()  + ".out",
             reducer_out:    reducer.clone() + ".out",
 
             mapper:         mapper,
@@ -390,19 +393,45 @@ impl MapReduce for Parallel {
     }
 
     fn reduce<'a, T: IntoIterator<Item = &'a str>>(&self, data: T) -> Result<String> {
-        let mut children = Vec::new();
+        // Before we start reducer instances, we need to know how many reducers we can
+        // actually make use of. This is done by grouping the data according to its keys.
+        //
+        // A line in the data has to be of the following format: (key, value), where value
+        // may be an arbitrary complex construct itself.
+        let groups = data.into_iter().fold(HashMap::new(), |mut map, line| {
+            match line
+                .trim_right_matches(")")
+                .trim_left_matches("(")
+                .split(", ")
+                .next() {
+                Some(key)   => map.entry(key).or_insert(vec![]).push(line),
+                None        => (),
+            };
 
+            map
+        });
+
+        let instances = std::cmp::min(self.cores, groups.len());
+
+        let mut children = Vec::new();
         // First of all, we need to spawn enough child processes to cover the
         // client request. That is, we spawn as many child processes as the client
         // requested and do not check whether that makes actual sense.
-        for _ in 0..1 {
+        for _ in 0..instances {
             children.push(try!(spawn_python(&self.reducer)));
         }
 
-        match write_all_balanced(&mut children, data) {
-            Ok(_)  => (),
-            Err(e) => return Err(e),
-        };
+        // Push the data of the different groups in the hash map into successive instances of 
+        // the reducer and wrap around as soon as every reducer has gotten a set of keys.
+        let mut index = 0;
+        for (_, group) in groups {
+            match write_all_data(&mut children[index%instances], group) {
+                Ok(_)  => (),
+                Err(e) => return Err(e),
+            };   
+
+            index = index + 1;
+        }
 
         let mut buffer = String::new();
         // Now, gather all the output from all our children. To do so, we use a mutable
