@@ -3,6 +3,7 @@ import numpy
 articles_dic = {}
 user_feat = numpy.zeros(6)
 maxID = 0
+alpha = 1 + numpy.sqrt(numpy.log(2/0.1)/2)
 
 def set_articles(articles):
     pass
