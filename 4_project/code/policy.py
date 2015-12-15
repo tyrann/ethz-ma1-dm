@@ -1,44 +1,55 @@
-import numpy
+import numpy as np
 
-articles_dic = {}
-user_feat = numpy.zeros(6)
-maxID = 0
-alpha = 1 + numpy.sqrt(numpy.log(2/0.1)/2)
-a = 5
+NUM_FEATURES = 6
+ID_START     = None
+
+def feature_vector(): return np.zeros(NUM_FEATURES)
+def feature_matrix(): return np.identity(NUM_FEATURES)
+
+lookup   = {}
+features = feature_vector()
+alpha    = 1 + np.sqrt(np.log(2/0.1)/2)
+maxID    = ID_START
 
 def set_articles(articles):
-    pass
+    pass;
 
 def update(reward):
-    articles_dic[maxID][0] += user_feat * user_feat.T
-    articles_dic[maxID][1] += reward*user_feat
+    # Index 0: Mx
+    # Index 1: bx
+    lookup[maxID][0] += np.outer(features, features)
+    lookup[maxID][1] += reward*features
 
-def recommend(time, user_features, articles):
+def reccomend(time, z_t, articles):
+    global maxID
 
+    # z_t is 6 entry feature vector.
+    # M_x is 6x6 matrix.
     maxUCB = None
-    user_feat = user_features
+
+    features = z_t
     for id in articles:
-
         # create or retrieve an entry in the dictionary
-        (M_x,b_x) = addToDic(id)
+        M_x, b_x = addToDic(id)
 
-        # initialize weights
-        M_x_inv = numpy.linalg.inv(M_x)
-        w_t = M_x_inv * b_x
+        # M_x is 6x6, M_x_inv is 6x6 vas well.
+        # w_t is 6x1.
+        M_x_inv = np.linalg.inv(M_x)
+        w_t = np.inner(M_x_inv, b_x)
 
-        #set UCBx
+        # Had to replace many of the multiplications with np.inner.
+        # Apparently, multiplication is done element wise by default.
+        estimate  = np.inner(w_t, z_t)
+        inner_z_m = np.inner(z_t, M_x_inv)
+        inner_t_z = np.inner(inner_z_m, z_t)
+        additive  = np.sqrt(inner_t_z)
+        ucbx      = estimate + alpha*additive
 
-        UCBx = numpy.dot(w_t,user_features) + alpha*numpy.sqrt(numpy.transpose(user_features)*M_x_inv*user_features)
-
-        if maxUCB is None or UCBx > maxUCB:
-            maxUCB = UCBx
-            maxID = id
+        if maxUCB is None or ucbx > maxUCB:
+            maxUCB = ucbx
+            maxID  = id
 
     return maxID
 
 def addToDic(id):
-    if id in articles_dic:
-        return articles_dic[id]
-    else:
-        articles_dic[id] = (numpy.identity(6),numpy.zeros(6))
-        return articles_dic[id]
+    return lookup.setdefault(id, [feature_matrix(), feature_vector()])
