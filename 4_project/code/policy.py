@@ -1,19 +1,70 @@
 import numpy as np
 import math
 
-NUM_FEATURES = 6
-ID_START     = None
+NUM_FEATURES    = 6         # The number of features per article.
+ALPHA           = 0.2;      # The alpha value used in linucb.
+CURRENT_ID      = None;     # The id of the last selected article.
 
-def feature_vector(): return np.zeros(NUM_FEATURES).astype(float)
-def feature_matrix(): return np.identity(NUM_FEATURES)
 
-lookup   = {}
-features = feature_vector()
-alpha    = 0.2
-maxID    = ID_START
+def feature_vector(): 
+    """
+    Creates a new feature vector initialized to all zeroes.
+    The size of the feature vector depends on the NUM_FEATURES constant.
+
+    Returns
+    -------------
+
+    A new vector initialized to zero.
+    """
+    return np.zeros(NUM_FEATURES, dtype=float)
+
+def feature_matrix(): 
+    """
+    Creates a new feature matrix initialized to the identity.
+    The size of the feature matrix depends on the NUM_FEATURES constant.
+
+    Returns
+    -------------
+
+    A new matrix initialized to the identity matrix.
+    """
+    return np.identity(NUM_FEATURES, dtype=float)
+
+def tracking_matrix():
+    """
+    Creates a new tracking matrix initialized to all zeroes.
+    The size of the tracking matrix depends on the NUM_FEATURES constant.
+
+    Returns
+    -------------
+
+    A new matrix initialized to zero.
+    """
+    return np.zeros((NUM_FEATURES, NUM_FEATURES), dtype=float)
+
+A0 = feature_matrix();  # Hybrid linucb learned variable.
+B0 = feature_vector();  # Hybrid linucb learned variable.
+F  = feature_vector();  # The last user feature vector.
+
+# We use a lookup table that stores key-value pairs where the key is the id of
+# an article and the value is a tuple (A, B, b) which keeps track of the article
+# related A and B matrices as well as the article related feature vector.
+H  = {}
+A  = []
 
 def set_articles(articles):
-    pass;
+    """
+    Sets the global articles storage to the newly provided articles.
+    The old articles get dropped when new articles are written.
+
+    Parameters
+    --------------
+
+    articles : [[float]]
+        A list of feature vectors for all articles.
+    """
+    global A
+    A = articles
 
 def update(reward):
     # Index 0: Mx
@@ -23,39 +74,59 @@ def update(reward):
     lookup[maxID][1] += np.multiply(reward,features)
 
 
-def reccomend(time, z_t, articles):
+def reccomend(t, f, articles):
+    """
+    This terribly named function creates a new recommendation for the specified user
+    based, selected from the specified articles using a hybrid linucb approach.
 
-    global maxID
+    Parameters
+    --------------
 
-    # z_t is 6 entry feature vector.
-    # M_x is 6x6 matrix.
-    maxUCB = None
+    t : int
+        The time at which the recommendation is computed.
 
-    global features
-    features = z_t
-    for id in articles:
+    f : [float]
+        The user feature vector describing the preferences of the specified user.
+
+    articles : [int]
+        The vector of article identites which are kept track of in the lookup table.
+
+    Returns
+    --------------
+
+    An integer describing the article selected from the provided articles.
+    """
+
+    global M    # Need to keep track of the selected article.
+    global F    # Need to keep track of the user feature vector.
+    F = f       # Update the user feature vector.
+
+    max_ucb = None
+    for article in articles:
 
         # create or retrieve an entry in the dictionary
-        M_x, b_x = addToDic(id)
-
-        # M_x is 6x6, M_x_inv is 6x6 vas well.
-        # w_t is 6x1.
-        M_x_inv = np.linalg.inv(M_x)
-        w_t = np.dot(M_x_inv, b_x)
-
-        # Had to replace many of the multiplications with np.inner.
-        # Apparently, multiplication is done element wise by default.
-
-        # Should we use the articles features in the estimate?
-        estimate  = np.dot(w_t, z_t)
-        step = alpha * math.sqrt(np.dot(np.dot(w_t,np.linalg.inv(M_x)),w_t))
-        ucbx      = estimate + step
-
-        if maxUCB is None or ucbx > maxUCB:
-            maxUCB = ucbx
-            maxID  = id
-
+        Ainv, B, b = select(article)
+        
     return maxID
 
-def addToDic(id):
-    return lookup.setdefault(id, [feature_matrix(), feature_vector()])
+def select(article):
+    """
+    Selects the A, B, b tuple for an article or initializes a new set of
+    variables for the article.
+
+    Parameters
+    --------------
+
+    article : int
+        The article to be selected.
+
+    Returns
+    --------------
+
+    A list containing the A, B and b values in that order.
+    """
+    return H.setdefault(article, [
+            feature_matrix(), 
+            tracking_matrix(),
+            feature_vector()
+        ])
