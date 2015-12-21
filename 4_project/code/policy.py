@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import sys
 
 NUM_FEATURES    = 6         # The number of features per article.
 ALPHA           = 0.2;      # The alpha value used in linucb.
@@ -51,7 +52,7 @@ M  = None               # The index of the maximum article.
 # an article and the value is a tuple (A, B, b) which keeps track of the article
 # related A and B matrices as well as the article related feature vector.
 Lookup    = {}
-Articles  = []
+Articles  = {}
 
 def set_articles(articles):
     """
@@ -64,8 +65,13 @@ def set_articles(articles):
     articles : [[float]]
         A list of feature vectors for all articles.
     """
-    global A
-    A = articles
+    global Articles
+
+    for article in articles:
+        n = article
+        f = articles[article]
+
+        Articles[n] = np.array(f)
 
 
 def update(reward):
@@ -95,7 +101,7 @@ def update(reward):
 
     # Do final update step for the article.
     A0 = A0 + np.dot(F, F.T) - np.dot(newB.T, np.dot(newI, newB))
-    B0 = B0 + reward*F  np.dot(newB, np.dot(newI, newb))
+    B0 = B0 + reward*F + np.dot(newB, np.dot(newI, newb))
 
     # Update the data for the article.
     Lookup[M][0] = newA
@@ -127,12 +133,13 @@ def reccomend(t, f, articles):
     An integer describing the article selected from the provided articles.
     """
 
-    global M    # Need to keep track of the selected article.
-    global F    # Need to keep track of the user feature vector.
-    F = f       # Update the user feature vector.
+    global M            # Need to keep track of the selected article.
+    global F            # Need to keep track of the user feature vector.
+    F = np.array(f)     # Update the user feature vector.
+    f = F
     
     # Initialize Beta and A0
-    A0inv = np.lianlg.inv(A0)
+    A0inv = np.linalg.inv(A0)
     beta  = np.dot(A0inv, B0)
 
     # Initialize local tracking values.
@@ -140,7 +147,7 @@ def reccomend(t, f, articles):
     maxI = None # Id of article with maximum UCB value.
 
     for article in articles:
-        
+
         data = select(article)
         A = data[0] 
         I = data[1] 
@@ -162,7 +169,7 @@ def reccomend(t, f, articles):
         s4  = np.dot(x, np.dot(I, s42))
         s   = s1 - s2 + s3 + s4
 
-        p = np.dot(f, beta) + np.dot(x, t) + alpha*np.sqrt(s)
+        p = np.dot(f, beta) + np.dot(x, t) + ALPHA*np.sqrt(s)
 
         if p > maxV:
             maxV = p
