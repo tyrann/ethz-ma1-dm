@@ -160,13 +160,14 @@ def reccomend(t, f, articles):
         t = np.dot(I, t)
 
         # Compute hybrid UCB value.
+        ix  = np.dot(I, x)
+        bix = np.dot(B, ix)
+        aib = np.dot(A0inv, bix)
+
         s1  = np.dot(f.T, np.dot(A0inv, f))
-        s21 = np.dot(B, np.dot(I, x))
-        s2  = 2*np.dot(f, np.dot(A0inv, s21))
-        s3  = np.dot(x, np.dot(I, x))
-        s41 = np.dot(B, np.dot(I, x))
-        s42 = np.dot(B, np.dot(A0inv, s41))
-        s4  = np.dot(x, np.dot(I, s42))
+        s2  = 2*np.dot(f, aib)
+        s3  = np.dot(x, ix)
+        s4  = np.dot(x, np.dot(I, np.dot(B, aib)))
         s   = s1 - s2 + s3 + s4
 
         p = np.dot(f, beta) + np.dot(x, t) + ALPHA*np.sqrt(s)
